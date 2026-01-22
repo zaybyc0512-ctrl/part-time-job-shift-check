@@ -12,83 +12,67 @@ const GuideSection = () => {
 
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-8">
 
-                    {/* 1. はじめに */}
-                    <section>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
-                            1. このツールについて
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                            アルバイトやパートで働く方が、「年収の壁（123万、130万など）」を超えないようにシフトを管理するための無料ツールです。
-                            面倒な会員登録やログインは一切不要。ブラウザを開くだけですぐに使えて、入力したデータはあなたのスマートフォンやパソコンの中に自動的に保存されます。
+                    {/* 1. このツールについて */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">1. このツールについて</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                            アルバイトやパートで働く方が、「年収の壁（123万、130万など）」を超えないようにシフトを管理するための無料ツールです。面倒な会員登録やログインは一切不要。ブラウザを開くだけですぐに使えて、入力したデータはあなたのスマートフォンやパソコンの中に自動的に保存されます。
                         </p>
-                    </section>
+                    </div>
 
                     {/* 2. 基本的な操作方法 */}
-                    <section>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
-                            2. 基本的な操作方法
-                        </h3>
-                        {/* Flexbox: スマホで縦(col), PCで横(row) */}
-                        <div className="flex flex-col md:flex-row gap-4 h-full">
-
-                            {/* STEP 1 */}
-                            <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                                <span className="font-bold text-blue-700 dark:text-blue-300 block mb-2">STEP 1: 設定</span>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    画面右上の「編集アイコン」から、現在の時給と、目標とする年収の壁（例: 130万円）を設定します。
-                                    複数のバイト先がある場合は、時給リストに追加することで切り替えて入力できます。
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">2. 基本的な操作方法</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-blue-50 dark:bg-slate-800 p-4 rounded-lg">
+                                <h4 className="font-bold text-blue-600 dark:text-blue-400 mb-2 text-sm">STEP 1: 設定</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    画面右上の「入力設定」アイコンから、現在の時給と、目標とする年収の壁（例: 130万円）を設定します。複数のバイト先がある場合は、時給リストに追加することで切り替えて入力できます。
                                 </p>
                             </div>
-
-                            {/* STEP 2 */}
-                            <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                                <span className="font-bold text-blue-700 dark:text-blue-300 block mb-2">STEP 2: 入力</span>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    カレンダーの日付をタップして、働いた時間を入力します。
-                                    「よく使う時間（プリセット）」を登録しておくと、ワンタップで入力できて便利です。
+                            <div className="bg-blue-50 dark:bg-slate-800 p-4 rounded-lg">
+                                <h4 className="font-bold text-blue-600 dark:text-blue-400 mb-2 text-sm">STEP 2: 入力</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    カレンダーの日付をタップしてシフトを入力します。「時間(h)入力」または「時刻指定（開始・終了）」の2つのモードを用途に合わせて使い分けられます。
                                 </p>
                             </div>
-
-                            {/* STEP 3 */}
-                            <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                                <span className="font-bold text-blue-700 dark:text-blue-300 block mb-2">STEP 3: 確認</span>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    画面上部のプログレスバーで、あといくら稼げるかが一目でわかります。
-                                    「1月の概算」などの月別合計も自動計算されるので、給与明細との照らし合わせにも役立ちます。
+                            <div className="bg-blue-50 dark:bg-slate-800 p-4 rounded-lg">
+                                <h4 className="font-bold text-blue-600 dark:text-blue-400 mb-2 text-sm">STEP 3: 確認</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    画面上部のプログレスバーで、あといくら稼げるかが一目でわかります。「今月の概算」は設定した締め日に基づいて自動計算されるので、給与明細との照らし合わせにも役立ちます。
                                 </p>
                             </div>
-
                         </div>
-                    </section>
+                    </div>
 
-                    {/* 3. データ管理とプライバシー */}
-                    <section>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
-                            3. データ管理とセキュリティ
-                        </h3>
-                        <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {/* 3. 便利な機能・カスタマイズ */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">3. 便利な機能・カスタマイズ</h3>
+                        <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 dark:text-gray-400">
                             <li>
-                                <span className="font-bold">データの保存場所:</span> 入力したシフト情報や設定は、すべてお使いのブラウザ内（LocalStorage）に保存されます。外部のサーバーに送信されることはありませんので、プライバシーは完全に守られます。
+                                <span className="font-bold text-gray-700 dark:text-gray-300">スケジュール帳機能:</span> 入力画面の「予定・メモ」タブから、遊びや学校の予定を登録できます。ヘッダーの「予定設定」から好きな色や名前（例：ピンクでデート）を自由にカスタマイズ可能です。
                             </li>
                             <li>
-                                <span className="font-bold">機種変更時のバックアップ:</span> 右上の「歯車アイコン」から「システム設定」を開き、「書き出し（JSON）」を行うことで、全データをファイルとして保存できます。新しいスマホで「読み込み」を行えば、データを完全に復元できます。
+                                <span className="font-bold text-gray-700 dark:text-gray-300">給与締め日の変更:</span> 「システム設定」から締め日（20日締め、末日締めなど）を変更できます。カレンダー下のリストや月次集計が、実際の給与期間に合わせて自動で切り替わります。
                             </li>
                             <li>
-                                <span className="font-bold">CSVエクスポート:</span> 入力データをExcelやGoogleスプレッドシートで管理したい場合は、「CSVエクスポート」機能をご利用ください。確定申告の準備などにも活用できます。
+                                <span className="font-bold text-gray-700 dark:text-gray-300">年収の壁攻略シミュレーター:</span> 画面下部にて、残りの扶養枠から「あと何時間（何日）働けるか」をリアルタイムで算出します。シフト調整の目安に最適です。
+                            </li>
+                            <li>
+                                <span className="font-bold text-gray-700 dark:text-gray-300">シフト一括入力:</span> 「毎週月・水・金」のように決まったシフトがある場合は、右上の「一括入力」ボタンからまとめて登録すると便利です。
                             </li>
                         </ul>
-                    </section>
+                    </div>
 
-                    {/* 4. カスタマイズ */}
-                    <section>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
-                            4. カスタマイズ機能
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                            システム設定から「背景画像」にお好きな写真を設定したり、右上のアイコンで「ダークモード」に切り替えることができます。
-                            毎日使うツールだからこそ、あなたの使いやすい見た目に調整してください。
-                        </p>
-                    </section>
+                    {/* 4. データ管理とセキュリティ */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">4. データ管理とセキュリティ</h3>
+                        <ul className="list-disc list-inside space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                            <li>データの保存場所: 入力した情報は、すべてお使いのブラウザ内 (LocalStorage) に保存されます。外部サーバーに送信されることはありません。</li>
+                            <li>機種変更時のバックアップ: 右上の「システム設定」を開き、「書き出し (JSON)」を行うことで、全データをファイルとして保存できます。新しいスマホで「読み込み」を行えば、データを完全に復元できます。</li>
+                            <li>CSVエクスポート: 確定申告やExcel管理用に、入力データをCSV形式で出力することも可能です。</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
