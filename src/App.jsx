@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon, X } from 'lucide-react';
 import InputSettingsModal from './components/InputSettingsModal';
 import SystemSettingsModal from './components/SystemSettingsModal';
 import ShiftList from './components/ShiftList';
