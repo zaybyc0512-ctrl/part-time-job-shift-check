@@ -5,6 +5,7 @@ import SystemSettingsModal from './components/SystemSettingsModal';
 import ShiftList from './components/ShiftList';
 import AdPlaceholder from './components/AdPlaceholder';
 import GuideSection from './components/GuideSection';
+import Footer from './components/Footer';
 
 const App = () => {
     // --- State Management ---
@@ -344,6 +345,7 @@ const App = () => {
 
                 {/* Guide Section (Placed outside max-w-md to span full width) */}
                 <GuideSection />
+                <Footer />
 
                 {/* Legacy Shift Input Modal (could be refactored to component later) */}
                 {isShiftModalOpen && (
