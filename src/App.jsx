@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon, X, CalendarRange } from 'lucide-react';
 import InputSettingsModal from './components/InputSettingsModal';
 import SystemSettingsModal from './components/SystemSettingsModal';
 import ShiftList from './components/ShiftList';
 import AdPlaceholder from './components/AdPlaceholder';
 import GuideSection from './components/GuideSection';
 import Footer from './components/Footer';
+import BatchInputModal from './components/BatchInputModal';
 
 const App = () => {
     // --- State Management ---
@@ -55,6 +56,7 @@ const App = () => {
     // Modals
     const [isInputSettingsOpen, setIsInputSettingsOpen] = useState(false);
     const [isSystemSettingsOpen, setIsSystemSettingsOpen] = useState(false);
+    const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
     const [isShiftModalOpen, setIsShiftModalOpen] = useState(false); // Legacy modal state, reusing logic inside specific component later or keep inline for now
 
     // Shift Input State
@@ -197,6 +199,13 @@ const App = () => {
         document.getElementById('guide-section')?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const handleBatchSave = (newShifts) => {
+        setShifts(prev => ({
+            ...prev,
+            ...newShifts
+        }));
+    };
+
     return (
         <div
             className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans pb-20 transition-colors"
@@ -236,6 +245,13 @@ const App = () => {
                                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                                 >
                                     <Settings className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                                </button>
+                                <button
+                                    onClick={() => setIsBatchInputOpen(true)}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                    title="一括入力"
+                                >
+                                    <CalendarRange className="w-6 h-6 text-gray-600 dark:text-gray-300" />
                                 </button>
                             </div>
                         </div>
@@ -425,6 +441,13 @@ const App = () => {
                     isOpen={isSystemSettingsOpen}
                     onClose={() => setIsSystemSettingsOpen(false)}
                     shifts={shifts}
+                />
+
+                <BatchInputModal
+                    isOpen={isBatchInputOpen}
+                    onClose={() => setIsBatchInputOpen(false)}
+                    onSave={handleBatchSave}
+                    settings={settings}
                 />
 
             </div>
