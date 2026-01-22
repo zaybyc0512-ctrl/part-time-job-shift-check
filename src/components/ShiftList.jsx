@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
-const ShiftList = ({ shifts, currentDate, onShiftClick }) => {
+const ShiftList = ({ shifts, currentDate, onShiftClick, fiscalPeriod }) => {
     const getFormattedDate = (date) => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
@@ -16,34 +16,44 @@ const ShiftList = ({ shifts, currentDate, onShiftClick }) => {
         return ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
     };
 
-    // Filter and Sort Shifts for Current Month
-    const currentMonthPrefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-
+    // Filter and Sort Shifts based on Fiscal Period
     const monthlyShifts = Object.keys(shifts)
-        .filter(key => key.startsWith(currentMonthPrefix))
-        .sort()
         .map(key => {
             const [year, month, day] = key.split('-').map(Number);
             const date = new Date(year, month - 1, day);
+            // safe time set
+            date.setHours(0, 0, 0, 0);
             return {
                 date,
                 key,
                 ...shifts[key]
             };
-        });
+        })
+        .filter(item => {
+            if (!fiscalPeriod) return true; // Fallback
+            const { start, end } = fiscalPeriod;
+            // Ensure comparison works (dates already 0-houred in map? no, new Date defaults. safe to zero out bounds)
+            const target = item.date;
+            // Compare timestamps
+            return target.getTime() >= start.getTime() && target.getTime() <= end.getTime();
+        })
+        .sort((a, b) => a.date - b.date);
 
     if (monthlyShifts.length === 0) {
         return (
             <div className="text-center py-8 text-gray-400 text-sm">
-                この月のシフトはまだありません
+                この期間のシフトはまだありません
             </div>
         );
     }
 
     return (
         <div className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-500 px-2">
-                {currentDate.getMonth() + 1}月の詳細リスト
+            <h3 className="text-sm font-bold text-gray-500 px-2 flex justify-between items-center">
+                <span>詳細リスト</span>
+                <span className="text-xs font-normal text-gray-400">
+                    {fiscalPeriod ? `${fiscalPeriod.start.getMonth() + 1}/${fiscalPeriod.start.getDate()} ~ ${fiscalPeriod.end.getMonth() + 1}/${fiscalPeriod.end.getDate()}` : `${currentDate.getMonth() + 1}月`}
+                </span>
             </h3>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {monthlyShifts.map((shift, index) => (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon, X, CalendarRange } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, SlidersHorizontal, Settings, Sun, Moon, X, CalendarRange, Palette } from 'lucide-react';
 import InputSettingsModal from './components/InputSettingsModal';
 import SystemSettingsModal from './components/SystemSettingsModal';
 import ShiftList from './components/ShiftList';
@@ -7,6 +7,8 @@ import AdPlaceholder from './components/AdPlaceholder';
 import GuideSection from './components/GuideSection';
 import Footer from './components/Footer';
 import BatchInputModal from './components/BatchInputModal';
+import ShiftEditModal from './components/ShiftEditModal';
+import EventSettingsModal from './components/EventSettingsModal';
 
 const App = () => {
     // --- State Management ---
@@ -53,16 +55,24 @@ const App = () => {
         return migrated;
     });
 
+    // Events State
+    const [events, setEvents] = useState(() => loadInitialState('events', {}));
+    const [eventPresets, setEventPresets] = useState(() => loadInitialState('eventPresets', [
+        { id: 1, name: '遊び', color: 'ring-pink-300' },
+        { id: 2, name: '学校', color: 'ring-blue-300' },
+        { id: 3, name: 'テスト', color: 'ring-red-300' },
+        { id: 4, name: 'デート', color: 'ring-purple-300' },
+    ]));
+
     // Modals
     const [isInputSettingsOpen, setIsInputSettingsOpen] = useState(false);
     const [isSystemSettingsOpen, setIsSystemSettingsOpen] = useState(false);
     const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
-    const [isShiftModalOpen, setIsShiftModalOpen] = useState(false); // Legacy modal state, reusing logic inside specific component later or keep inline for now
+    const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+    const [isEventSettingsOpen, setIsEventSettingsOpen] = useState(false);
 
     // Shift Input State
     const [selectedDate, setSelectedDate] = useState(null);
-    const [inputHours, setInputHours] = useState('');
-    const [selectedWageId, setSelectedWageId] = useState('');
 
     // Background Image
     const [backgroundImage, setBackgroundImage] = useState(() => {
@@ -74,23 +84,17 @@ const App = () => {
 
     // Dark Mode
     const [isDarkMode, setIsDarkMode] = useState(() => {
-        // 1. Check localStorage
         const savedTheme = localStorage.getItem('theme');
-        console.log('Initial Theme (LocalStorage):', savedTheme);
         if (savedTheme) {
             return savedTheme === 'dark';
         }
-        // 2. Check system preference
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            console.log('Initial Theme (System): Dark');
             return true;
         }
-        console.log('Initial Theme (Default): Light');
         return false;
     });
 
     useEffect(() => {
-        console.log('Theme changed to:', isDarkMode ? 'dark' : 'light');
         const root = document.documentElement;
         if (isDarkMode) {
             root.classList.add('dark');
@@ -109,6 +113,14 @@ const App = () => {
         localStorage.setItem('settings', JSON.stringify(settings));
     }, [settings]);
 
+    useEffect(() => {
+        localStorage.setItem('events', JSON.stringify(events));
+    }, [events]);
+
+    useEffect(() => {
+        localStorage.setItem('eventPresets', JSON.stringify(eventPresets));
+    }, [eventPresets]);
+
     // --- Calendar Logic ---
     const getDaysInMonth = (year, month) => {
         const firstDay = new Date(year, month, 1);
@@ -122,6 +134,35 @@ const App = () => {
     const days = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
     const yearMonthLabel = `${currentDate.getFullYear()}年 ${currentDate.getMonth() + 1}月`;
 
+    // --- Fiscal Calculation Helpers ---
+    const getFiscalPeriod = (year, month, cutoff) => {
+        if (!cutoff || cutoff === 0) {
+            // End of month closing
+            const start = new Date(year, month, 1);
+            const end = new Date(year, month + 1, 0);
+            return {
+                start,
+                end,
+                label: '末日締め'
+            };
+        }
+        // Custom cutoff (e.g. 20th)
+        // Fiscal Month 2 (Feb) = Jan 21 ~ Feb 20
+        const start = new Date(year, month - 1, cutoff + 1);
+        const end = new Date(year, month, cutoff);
+        return {
+            start,
+            end,
+            label: `${start.getMonth() + 1}/${start.getDate()}~${end.getMonth() + 1}/${end.getDate()}`
+        };
+    };
+
+    const { start: fiscalStart, end: fiscalEnd, label: fiscalPeriodLabel } = getFiscalPeriod(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        settings.cutoffDay
+    );
+
     // --- Calculations ---
     const calculateTotal = (filterFn) => {
         return Object.keys(shifts)
@@ -134,9 +175,19 @@ const App = () => {
             }, 0);
     };
 
-    const currentMonthKeyPrefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-    const monthlyEstimatedSalary = Math.floor(calculateTotal(key => key.startsWith(currentMonthKeyPrefix)));
+    // Monthly Logic: Check if shift date is within fiscal period
+    const monthlyEstimatedSalary = Math.floor(calculateTotal(key => {
+        const [y, m, d] = key.split('-').map(Number);
+        const shiftDate = new Date(y, m - 1, d);
+        // Compare dates (setting time to 0 to be safe)
+        shiftDate.setHours(0, 0, 0, 0);
+        const start = new Date(fiscalStart); start.setHours(0, 0, 0, 0);
+        const end = new Date(fiscalEnd); end.setHours(23, 59, 59, 999);
+        return shiftDate >= start && shiftDate <= end;
+    }));
 
+    // Annual Logic remains calendar year for tax purposes (Jan 1 - Dec 31)
+    // OR should it be fiscal year? Usually "103万 wall" is Jan-Dec.
     const currentYearPrefix = `${currentDate.getFullYear()}-`;
     const annualEstimatedSalary = Math.floor(calculateTotal(key => key.startsWith(currentYearPrefix)));
 
@@ -153,40 +204,41 @@ const App = () => {
     const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
+    // System Settings Handler
+    const handleSystemSettingsSave = (newSettings) => {
+        setSettings(prev => ({
+            ...prev,
+            ...newSettings
+        }));
+    };
+
     const handleDateClick = (date) => {
         if (!date) return;
-        const dateKey = getFormattedDate(date);
         setSelectedDate(date);
-
-        const existing = shifts[dateKey];
-        if (existing) {
-            setInputHours(existing.hours);
-            const matchedPreset = settings.wagePresets.find(p => p.wage === existing.wage && p.name === existing.wageName);
-            setSelectedWageId(matchedPreset ? matchedPreset.id : settings.wagePresets[0]?.id);
-        } else {
-            setInputHours('');
-            setSelectedWageId(settings.wagePresets[0]?.id);
-        }
-
         setIsShiftModalOpen(true);
     };
 
-    const handleSaveShift = () => {
+    const handleSaveShiftAndEvent = ({ shift, event }) => {
         if (selectedDate) {
             const dateKey = getFormattedDate(selectedDate);
-            const newShifts = { ...shifts };
 
-            if (inputHours === '' || inputHours === '0') {
-                delete newShifts[dateKey];
+            // Update Shifts
+            const newShifts = { ...shifts };
+            if (shift) {
+                newShifts[dateKey] = shift;
             } else {
-                const selectedPreset = settings.wagePresets.find(p => String(p.id) === String(selectedWageId));
-                newShifts[dateKey] = {
-                    hours: inputHours,
-                    wage: selectedPreset ? selectedPreset.wage : 0,
-                    wageName: selectedPreset ? selectedPreset.name : '不明'
-                };
+                delete newShifts[dateKey];
             }
             setShifts(newShifts);
+
+            // Update Events
+            const newEvents = { ...events };
+            if (event) {
+                newEvents[dateKey] = event;
+            } else {
+                delete newEvents[dateKey];
+            }
+            setEvents(newEvents);
         }
         setIsShiftModalOpen(false);
     };
@@ -205,6 +257,30 @@ const App = () => {
             ...newShifts
         }));
     };
+
+    // --- Helper for Event Summary ---
+    const getMonthlyEventSummary = () => {
+        // Collect all events in the CURRENT view (calendar month, not fiscal)
+        // because the calendar shows the calendar month.
+        const summary = {};
+        days.forEach(date => {
+            if (!date) return;
+            const key = getFormattedDate(date);
+            const event = events[key];
+            if (event) {
+                const preset = eventPresets.find(p => p.id === event.presetId);
+                if (preset) {
+                    summary[preset.name] = (summary[preset.name] || 0) + 1;
+                }
+            }
+        });
+        return Object.entries(summary).map(([name, count]) => {
+            const preset = eventPresets.find(p => p.name === name); // find color
+            return { name, count, color: preset ? preset.color : 'ring-gray-300' };
+        });
+    };
+
+    const eventSummary = getMonthlyEventSummary();
 
     return (
         <div
@@ -226,39 +302,63 @@ const App = () => {
                             <h1 className="text-sm font-bold text-gray-800 dark:text-white leading-tight" style={{ textWrap: 'balance' }}>
                                 アルバイト・パート年収の壁対策シフト記録管理ツール/扶養内・社保の働き損を自動チェック <span className="text-[10px] text-gray-400 font-normal block mt-1">(2026/01/21更新)</span>
                             </h1>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
+                                {/* Existing Buttons */}
                                 <button
                                     onClick={() => setIsDarkMode(!isDarkMode)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                    className="flex flex-col items-center gap-0.5 min-w-[36px]"
                                 >
-                                    {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-600" />}
+                                    <div className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                                        {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-600" />}
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">表示切替</span>
                                 </button>
-                                <button
-                                    onClick={() => setIsInputSettingsOpen(true)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative"
-                                >
-                                    <SlidersHorizontal className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                                    {/* Badge if setup needed? */}
-                                </button>
-                                <button
-                                    onClick={() => setIsSystemSettingsOpen(true)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                >
-                                    <Settings className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-                                </button>
+
                                 <button
                                     onClick={() => setIsBatchInputOpen(true)}
-                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                    title="一括入力"
+                                    className="flex flex-col items-center gap-0.5 min-w-[36px]"
                                 >
-                                    <CalendarRange className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                                    <div className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative">
+                                        <CalendarRange className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">一括入力</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setIsInputSettingsOpen(true)}
+                                    className="flex flex-col items-center gap-0.5 min-w-[36px]"
+                                >
+                                    <div className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative">
+                                        <SlidersHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">入力設定</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setIsSystemSettingsOpen(true)}
+                                    className="flex flex-col items-center gap-0.5 min-w-[36px]"
+                                >
+                                    <div className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                                        <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">システム</span>
                                 </button>
                             </div>
                         </div>
 
-                        <button onClick={scrollToGuide} className="text-xs text-primary dark:text-primary-light font-bold text-left hover:underline w-fit">
-                            使い方がわからない方はこちら
-                        </button>
+                        {/* Event Settings Link Button - New */}
+                        <div className="flex justify-between items-center w-full">
+                            <button onClick={scrollToGuide} className="text-xs text-primary dark:text-primary-light font-bold text-left hover:underline w-fit">
+                                使い方がわからない方はこちら
+                            </button>
+                            <button
+                                onClick={() => setIsEventSettingsOpen(true)}
+                                className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
+                            >
+                                <Palette className="w-3 h-3" />
+                                予定カラー設定
+                            </button>
+                        </div>
                     </div>
 
                     {/* Progress Card */}
@@ -282,16 +382,21 @@ const App = () => {
                     </div>
 
                     {/* Monthly Salary Badge */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center flex-col items-center gap-1">
                         <div className="bg-blue-50 dark:bg-blue-900/30 px-4 py-1.5 rounded-full flex items-center gap-2 border border-blue-100 dark:border-blue-800">
-                            <span className="text-xs text-gray-500 dark:text-gray-300 font-bold">1月の概算:</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-300 font-bold">{currentDate.getMonth() + 1}月の概算:</span>
                             <span className="text-sm font-bold text-primary dark:text-blue-300">¥{monthlyEstimatedSalary.toLocaleString()}</span>
                         </div>
+                        {settings.cutoffDay > 0 && (
+                            <span className="text-[10px] text-gray-400">
+                                集計期間: {fiscalPeriodLabel}
+                            </span>
+                        )}
                     </div>
                 </header>
 
                 {/* Main Content */}
-                <main className="p-4 max-w-md mx-auto space-y-8">
+                <main className="p-4 max-w-md mx-auto space-y-6">
 
                     {/* Top Ad */}
                     <AdPlaceholder size="small" className="dark:bg-gray-800 dark:border-gray-700" />
@@ -302,7 +407,10 @@ const App = () => {
                             <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                                 <ChevronLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                             </button>
-                            <h2 className="text-lg font-bold text-gray-800 dark:text-white">{yearMonthLabel}</h2>
+                            <div className="text-center">
+                                <h2 className="text-lg font-bold text-gray-800 dark:text-white">{yearMonthLabel}</h2>
+                                {settings.cutoffDay > 0 && <p className="text-[10px] text-gray-400">締め日: {settings.cutoffDay}日</p>}
+                            </div>
                             <button onClick={handleNextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                                 <ChevronRight className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                             </button>
@@ -319,7 +427,18 @@ const App = () => {
                                 if (!date) return <div key={`empty-${index}`} className="aspect-square" />;
                                 const dateKey = getFormattedDate(date);
                                 const shift = shifts[dateKey];
+                                const event = events[dateKey];
                                 const isToday = getFormattedDate(new Date()) === dateKey;
+
+                                // Visual check if date is in current fiscal period
+                                const isFiscal = date >= fiscalStart && date <= fiscalEnd;
+
+                                // Event ring color
+                                let ringClass = '';
+                                if (event) {
+                                    const preset = eventPresets.find(p => p.id === event.presetId);
+                                    if (preset) ringClass = `ring-4 ring-inset ${preset.color} rounded-xl`;
+                                }
 
                                 return (
                                     <button
@@ -327,8 +446,9 @@ const App = () => {
                                         onClick={() => handleDateClick(date)}
                                         className={`
                     aspect-square rounded-xl flex flex-col items-center justify-start pt-2 relative transition-all
-                    ${isToday ? 'bg-blue-50 dark:bg-blue-900/40 border-2 border-primary' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700'}
+                    ${isToday ? 'bg-blue-50 dark:bg-blue-900/40 border-2 border-primary z-10' : (isFiscal ? 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 opacity-60')}
                     hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 shadow-sm
+                    ${ringClass}
                   `}
                                     >
                                         <span className={`text-sm font-medium ${date.getDay() === 0 ? 'text-red-500' : date.getDay() === 6 ? 'text-blue-500' : 'text-gray-700 dark:text-gray-300'}`}>
@@ -345,17 +465,84 @@ const App = () => {
                         </div>
                     </section>
 
+                    {/* Event Summary Bar */}
+                    {eventSummary.length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-3 items-center">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">今月の予定:</span>
+                            {eventSummary.map((item, index) => (
+                                <div key={index} className="flex items-center gap-1">
+                                    <span className={`w-3 h-3 rounded-md ${item.color.replace('ring-', 'bg-').replace('300', '400')}`}></span>
+                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                        {item.name}({item.count})
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* List Section */}
                     <section>
                         <ShiftList
                             shifts={shifts}
                             currentDate={currentDate}
                             onShiftClick={handleDateClick}
+                            fiscalPeriod={{ start: fiscalStart, end: fiscalEnd }}
                         />
                     </section>
 
                     {/* Bottom Ad */}
                     <AdPlaceholder size="large" className="dark:bg-gray-800 dark:border-gray-700" />
+
+                    {/* Reverse Simulator Section */}
+                    <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-2xl p-5 text-white shadow-lg overflow-hidden relative">
+                        {/* Background Decoration */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12 pointer-events-none"></div>
+
+                        <div className="relative z-10">
+                            <h3 className="text-sm font-bold text-indigo-200 mb-4 flex items-center gap-2">
+                                <span className="p-1 bg-white/10 rounded-lg">📊</span>
+                                年収の壁攻略シミュレーター
+                            </h3>
+
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-black/20 rounded-xl p-3 backdrop-blur-sm">
+                                    <span className="text-xs text-indigo-200 block mb-1">残り枠</span>
+                                    <span className="text-lg font-bold">¥{remainingIncome.toLocaleString()}</span>
+                                </div>
+                                <div className="bg-black/20 rounded-xl p-3 backdrop-blur-sm">
+                                    <span className="text-xs text-indigo-200 block mb-1">現在の時給</span>
+                                    <span className="text-lg font-bold">¥{(settings.wagePresets?.[0]?.wage || 1000).toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/10 rounded-xl p-4 text-center border border-white/10">
+                                <span className="text-xs text-indigo-200 block mb-2">あと働ける時間</span>
+                                <div className="flex items-baseline justify-center gap-1">
+                                    <span className="text-3xl font-bold text-white">
+                                        {remainingIncome > 0 && settings.wagePresets?.[0]?.wage > 0
+                                            ? Math.floor(remainingIncome / settings.wagePresets[0].wage)
+                                            : 0}
+                                    </span>
+                                    <span className="text-sm font-bold text-indigo-200">時間</span>
+                                </div>
+
+                                {/* Estimated Days */}
+                                {remainingIncome > 0 && settings.wagePresets?.[0]?.wage > 0 && (
+                                    <div className="mt-1 text-xs text-indigo-300 flex justify-center gap-2 bg-black/20 rounded-lg py-1 px-3 w-fit mx-auto">
+                                        <span className="opacity-70">1日5hなら:</span>
+                                        <span className="font-bold text-white">
+                                            あと約{Math.floor((remainingIncome / settings.wagePresets[0].wage) / 5)}日分
+                                        </span>
+                                    </div>
+                                )}
+
+                                <p className="text-[10px] text-indigo-300 mt-2">
+                                    ※ 基本時給(¥{(settings.wagePresets?.[0]?.wage || 0)})で計算した場合の目安です
+                                </p>
+                            </div>
+                        </div>
+                    </div>
 
                 </main>
 
@@ -363,73 +550,18 @@ const App = () => {
                 <GuideSection />
                 <Footer />
 
-                {/* Legacy Shift Input Modal (could be refactored to component later) */}
-                {isShiftModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-xs p-6 shadow-xl animate-in zoom-in-95 duration-200 transition-colors">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                                    {selectedDate && `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`} のシフト
-                                </h3>
-                                <button onClick={() => setIsShiftModalOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-                                    <X className="w-6 h-6 text-gray-400" />
-                                </button>
-                            </div>
+                {/* Modals */}
+                <ShiftEditModal
+                    isOpen={isShiftModalOpen}
+                    onClose={() => setIsShiftModalOpen(false)}
+                    date={selectedDate}
+                    currentShift={selectedDate ? shifts[getFormattedDate(selectedDate)] : null}
+                    currentEvent={selectedDate ? events[getFormattedDate(selectedDate)] : null}
+                    onSave={handleSaveShiftAndEvent}
+                    settings={settings}
+                    eventPresets={eventPresets}
+                />
 
-                            <div className="space-y-4 mb-6">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 ml-1">時間</label>
-                                    <input
-                                        type="number"
-                                        value={inputHours}
-                                        onChange={(e) => setInputHours(e.target.value)}
-                                        placeholder="例: 5"
-                                        className="w-full text-4xl font-bold text-center text-primary dark:text-primary-light border-b-2 border-gray-200 dark:border-gray-600 focus:border-primary outline-none py-2 bg-transparent dark:text-white"
-                                        autoFocus
-                                    />
-
-                                    <div className="flex flex-wrap gap-2 justify-center mt-2">
-                                        {settings.timePresets.map((preset) => (
-                                            <button
-                                                key={preset}
-                                                onClick={() => setInputHours(String(preset))}
-                                                className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 active:scale-95 transition-all"
-                                            >
-                                                {preset}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-400 ml-1">勤務先 (時給)</label>
-                                    <select
-                                        value={selectedWageId}
-                                        onChange={(e) => setSelectedWageId(e.target.value)}
-                                        className="w-full text-lg font-bold text-gray-700 dark:text-gray-200 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    >
-                                        {settings.wagePresets.map(preset => (
-                                            <option key={preset.id} value={preset.id}>
-                                                {preset.name} (¥{preset.wage})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-3 px-4 rounded-xl text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    キャンセル
-                                </button>
-                                <button onClick={handleSaveShift} className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 active:scale-95 transition-all">
-                                    保存
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* New Modals */}
                 <InputSettingsModal
                     isOpen={isInputSettingsOpen}
                     onClose={() => setIsInputSettingsOpen(false)}
@@ -440,6 +572,8 @@ const App = () => {
                 <SystemSettingsModal
                     isOpen={isSystemSettingsOpen}
                     onClose={() => setIsSystemSettingsOpen(false)}
+                    settings={settings}
+                    onSave={handleSystemSettingsSave}
                     shifts={shifts}
                 />
 
@@ -448,6 +582,13 @@ const App = () => {
                     onClose={() => setIsBatchInputOpen(false)}
                     onSave={handleBatchSave}
                     settings={settings}
+                />
+
+                <EventSettingsModal
+                    isOpen={isEventSettingsOpen}
+                    onClose={() => setIsEventSettingsOpen(false)}
+                    eventPresets={eventPresets}
+                    onSave={setEventPresets}
                 />
 
             </div>
