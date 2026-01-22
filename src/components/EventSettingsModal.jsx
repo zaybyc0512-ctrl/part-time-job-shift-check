@@ -6,13 +6,14 @@ const EventSettingsModal = ({ isOpen, onClose, eventPresets, onSave }) => {
 
     // Tailwind color classes for selection
     const colorOptions = [
-        { label: 'ピンク', value: 'ring-pink-300' },
-        { label: 'ブルー', value: 'ring-blue-300' },
-        { label: 'グリーン', value: 'ring-green-300' },
-        { label: 'イエロー', value: 'ring-yellow-300' },
-        { label: 'パープル', value: 'ring-purple-300' },
-        { label: 'オレンジ', value: 'ring-orange-300' },
-        { label: 'グレー', value: 'ring-gray-300' },
+        { ring: 'ring-pink-400', bg: 'bg-pink-400' },
+        { ring: 'ring-blue-400', bg: 'bg-blue-400' },
+        { ring: 'ring-green-400', bg: 'bg-green-400' },
+        { ring: 'ring-yellow-400', bg: 'bg-yellow-400' },
+        { ring: 'ring-purple-400', bg: 'bg-purple-400' },
+        { ring: 'ring-red-400', bg: 'bg-red-400' },
+        { ring: 'ring-indigo-400', bg: 'bg-indigo-400' },
+        { ring: 'ring-orange-400', bg: 'bg-orange-400' },
     ];
 
     useEffect(() => {
@@ -23,7 +24,7 @@ const EventSettingsModal = ({ isOpen, onClose, eventPresets, onSave }) => {
 
     const handleAddPreset = () => {
         const newId = Math.max(...localPresets.map(p => p.id), 0) + 1;
-        setLocalPresets([...localPresets, { id: newId, name: '新しい予定', color: 'ring-blue-300' }]);
+        setLocalPresets([...localPresets, { id: newId, name: '新しい予定', color: 'ring-blue-400' }]);
     };
 
     const handleRemovePreset = (id) => {
@@ -81,14 +82,28 @@ const EventSettingsModal = ({ isOpen, onClose, eventPresets, onSave }) => {
 
                             {/* Color Selection */}
                             <div className="flex flex-wrap gap-2">
-                                {colorOptions.map((color) => (
-                                    <button
-                                        key={color.value}
-                                        onClick={() => handleChange(preset.id, 'color', color.value)}
-                                        className={`w-6 h-6 rounded-full border-2 ${color.value.replace('ring-', 'bg-').replace('300', '400')} ${preset.color === color.value ? 'border-gray-600 dark:border-white scale-110' : 'border-transparent opacity-50 hover:opacity-100'}`}
-                                        title={color.label}
-                                    />
-                                ))}
+                                {colorOptions.map((color) => {
+                                    const isSelected = preset.color === color.ring;
+
+                                    return (
+                                        <button
+                                            key={color.ring}
+                                            onClick={() => handleChange(preset.id, 'color', color.ring)}
+                                            className={`
+                                                w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center
+                                                ${color.bg}
+                                                ${isSelected
+                                                    ? 'border-gray-600 dark:border-white ring-2 ring-offset-2 ring-gray-300 dark:ring-gray-600 scale-110'
+                                                    : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'
+                                                }
+                                            `}
+                                            title={color.ring}
+                                            type="button"
+                                        >
+                                            {isSelected && <div className="w-2 h-2 bg-white rounded-full shadow-sm" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

@@ -67,12 +67,14 @@ const ShiftList = ({ shifts, currentDate, onShiftClick, fiscalPeriod }) => {
                     >
                         {/* Left: Date */}
                         <div className="flex items-center gap-3 w-16">
-                            <span className={`text-lg font-bold ${getDayColor(shift.date)}`}>
-                                {shift.date.getDate()}
-                            </span>
-                            <span className={`text-xs font-bold ${getDayColor(shift.date)} opacity-70`}>
-                                ({getDayLabel(shift.date)})
-                            </span>
+                            <div className="flex flex-col items-center">
+                                <span className={`text-sm font-bold ${getDayColor(shift.date)}`}>
+                                    {shift.date.getMonth() + 1}/{shift.date.getDate()}
+                                </span>
+                                <span className={`text-xs font-bold ${getDayColor(shift.date)} opacity-70`}>
+                                    ({getDayLabel(shift.date)})
+                                </span>
+                            </div>
                         </div>
 
                         {/* Center: Details */}

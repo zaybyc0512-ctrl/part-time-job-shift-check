@@ -121,6 +121,57 @@ const App = () => {
         localStorage.setItem('eventPresets', JSON.stringify(eventPresets));
     }, [eventPresets]);
 
+    // --- Notification Logic ---
+    useEffect(() => {
+        if (!("Notification" in window)) return;
+
+        // Check for permission logic
+        if (Notification.permission === 'default') {
+            // We can ask here or on specific action. 
+            // For now, let's ask on first load if supported, or maybe better to ask when user enables notification in modal.
+            // But to ensure it works, we might need a button.
+            // Let's rely on the user enabling it in modal, but we need to trigger permission then?
+            // Since we can't trigger permission from background loop, let's just leave it. 
+            // Browser might block auto-request.
+        }
+
+        const checkNotifications = () => {
+            if (Notification.permission !== 'granted') return;
+
+            const now = new Date();
+            const dateKey = getFormattedDate(now);
+            const shift = shifts[dateKey];
+
+            if (shift && shift.startTime && shift.notificationEnabled) {
+                // Parse start time
+                const [h, m] = shift.startTime.split(':').map(Number);
+                const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+
+                // Notify 15 minutes before
+                const notifyTime = new Date(start.getTime() - 15 * 60000); // 15 mins before
+
+                // Check if current time is within the notification window (e.g. notifyTime <= now < notifyTime + 1 min)
+                const diff = now - notifyTime;
+
+                // If it is exactly the time (or within 1 min margin to avoid double firing, though interval is 1 min)
+                // We need a way to prevent double firing. 
+                // Simple way: check if diff is between 0 and 60000ms
+                if (diff >= 0 && diff < 60000) {
+                    new Notification(`バイトの時間です！`, {
+                        body: `本日 ${shift.startTime} からシフトがあります。\n準備は大丈夫ですか？`,
+                        icon: '/pwa-192x192.png' // Assuming icon exists
+                    });
+                }
+            }
+        };
+
+        const interval = setInterval(checkNotifications, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [shifts]); // Re-run if shifts change, though interval captures 'shifts' in closure? 
+    // Actually, setInterval closure might trap old 'shifts'. 
+    // Better to use ref or dependency. Adding shifts to dependency ensures we have latest.
+
+
     // --- Calendar Logic ---
     const getDaysInMonth = (year, month) => {
         const firstDay = new Date(year, month, 1);
@@ -248,7 +299,10 @@ const App = () => {
     };
 
     const scrollToGuide = () => {
-        document.getElementById('guide-section')?.scrollIntoView({ behavior: 'smooth' });
+        const element = document.getElementById('guide-section');
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     };
 
     const handleBatchSave = (newShifts) => {
@@ -343,20 +397,23 @@ const App = () => {
                                     </div>
                                     <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">システム</span>
                                 </button>
+
+                                <button
+                                    onClick={() => setIsEventSettingsOpen(true)}
+                                    className="flex flex-col items-center gap-0.5 min-w-[36px]"
+                                >
+                                    <div className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative">
+                                        <Palette className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">予定設定</span>
+                                </button>
                             </div>
                         </div>
 
-                        {/* Event Settings Link Button - New */}
-                        <div className="flex justify-between items-center w-full">
-                            <button onClick={scrollToGuide} className="text-xs text-primary dark:text-primary-light font-bold text-left hover:underline w-fit">
-                                使い方がわからない方はこちら
-                            </button>
-                            <button
-                                onClick={() => setIsEventSettingsOpen(true)}
-                                className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
-                            >
-                                <Palette className="w-3 h-3" />
-                                予定カラー設定
+                        <div className="flex justify-end items-center w-full mt-1">
+                            <button onClick={scrollToGuide} className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-xs font-bold px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                                <span>使い方がわからない方はこちら</span>
+                                <ChevronRight className="w-3 h-3" />
                             </button>
                         </div>
                     </div>

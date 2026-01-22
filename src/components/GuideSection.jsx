@@ -2,7 +2,7 @@ import React from 'react';
 
 const GuideSection = () => {
     return (
-        <div id="guide-section" className="w-full max-w-4xl mx-auto mt-12 px-4 pb-20">
+        <div id="guide-section" className="w-full max-w-4xl mx-auto mt-12 px-4 pb-20 scroll-mt-[250px]">
 
             {/* --- セクション1: 詳細使い方ガイド (SEO/AdSense対策で拡充) --- */}
             <div className="mb-12">
@@ -18,7 +18,7 @@ const GuideSection = () => {
                             1. このツールについて
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                            アルバイトやパートで働く方が、「年収の壁（103万、130万など）」を超えないようにシフトを管理するための無料ツールです。
+                            アルバイトやパートで働く方が、「年収の壁（123万、130万など）」を超えないようにシフトを管理するための無料ツールです。
                             面倒な会員登録やログインは一切不要。ブラウザを開くだけですぐに使えて、入力したデータはあなたのスマートフォンやパソコンの中に自動的に保存されます。
                         </p>
                     </section>

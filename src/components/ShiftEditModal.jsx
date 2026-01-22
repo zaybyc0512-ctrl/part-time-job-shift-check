@@ -5,8 +5,14 @@ const ShiftEditModal = ({ isOpen, onClose, date, currentShift, currentEvent, onS
     const [activeTab, setActiveTab] = useState('shift'); // 'shift' or 'event'
 
     // Shift State
+    const [inputMode, setInputMode] = useState('hours'); // 'hours' or 'time'
     const [inputHours, setInputHours] = useState('');
     const [selectedWageId, setSelectedWageId] = useState('');
+
+    // Time Input State
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
+    const [breakTime, setBreakTime] = useState('0'); // minutes
 
     // Event State
     const [selectedEventPresetId, setSelectedEventPresetId] = useState(null);
@@ -17,11 +23,31 @@ const ShiftEditModal = ({ isOpen, onClose, date, currentShift, currentEvent, onS
             // Initialize Shift Data
             if (currentShift) {
                 setInputHours(currentShift.hours);
+                // Check if shift has time data to switch mode
+                if (currentShift.startTime && currentShift.endTime) {
+                    setInputMode('time');
+                    setStartTime(currentShift.startTime);
+                    setEndTime(currentShift.endTime);
+                    setBreakTime(currentShift.breakTime || '0');
+
+                } else {
+                    setInputMode('hours');
+                    setStartTime('');
+                    setEndTime('');
+                    setBreakTime('0');
+
+                }
+
                 const matchedPreset = settings.wagePresets.find(p => p.wage === currentShift.wage && p.name === currentShift.wageName);
                 setSelectedWageId(matchedPreset ? matchedPreset.id : settings.wagePresets[0]?.id);
                 if (currentShift) setActiveTab('shift');
             } else {
                 setInputHours('');
+                setInputMode('hours'); // Default to hours for new shift? Or user preference? keeping hours simple
+                setStartTime('');
+                setEndTime('');
+                setBreakTime('0');
+
                 setSelectedWageId(settings.wagePresets[0]?.id);
             }
 
@@ -34,11 +60,33 @@ const ShiftEditModal = ({ isOpen, onClose, date, currentShift, currentEvent, onS
             } else {
                 setSelectedEventPresetId(null);
                 setEventNote('');
-                // If neither, default tab is shift (already set by default state, but good to be explicit if needed)
+                // If neither, default tab is shift
                 if (!currentShift) setActiveTab('shift');
             }
         }
     }, [isOpen, date, currentShift, currentEvent, settings]);
+
+    // Auto-calculate hours when time inputs change
+    useEffect(() => {
+        if (inputMode === 'time' && startTime && endTime) {
+            const start = new Date(`2000/01/01 ${startTime}`);
+            const end = new Date(`2000/01/01 ${endTime}`);
+
+            if (end > start) {
+                const diffMs = end - start;
+                const diffMins = Math.floor(diffMs / 60000);
+                const breakMins = parseInt(breakTime) || 0;
+                const workMins = Math.max(0, diffMins - breakMins);
+                const hours = (workMins / 60).toFixed(2);
+                // Remove trailing zeros if integer
+                setInputHours(parseFloat(hours).toString());
+            } else {
+                // If end <= start (e.g. crossing midnight not supported yet), reset or show error
+                // For now, just don't update hours or set to 0 if invalid
+                if (endTime && startTime) setInputHours('0');
+            }
+        }
+    }, [startTime, endTime, breakTime, inputMode]);
 
     const handleSave = () => {
         // Prepare shift data
@@ -48,7 +96,20 @@ const ShiftEditModal = ({ isOpen, onClose, date, currentShift, currentEvent, onS
             shiftData = {
                 hours: inputHours,
                 wage: selectedPreset ? selectedPreset.wage : 0,
-                wageName: selectedPreset ? selectedPreset.name : '不明'
+                wageName: selectedPreset ? selectedPreset.name : '不明',
+                // Persist time data if in time mode
+                ...(inputMode === 'time' ? {
+                    startTime,
+                    endTime,
+                    breakTime,
+
+                } : {
+                    // Clear time data if switched back to hours manual input
+                    startTime: null,
+                    endTime: null,
+                    breakTime: null,
+
+                })
             };
         }
 
@@ -104,29 +165,111 @@ const ShiftEditModal = ({ isOpen, onClose, date, currentShift, currentEvent, onS
                 <div className="p-6 min-h-[300px]">
                     {activeTab === 'shift' ? (
                         <div className="space-y-6 animate-in slide-in-from-left-4 duration-200">
-                            {/* Shift Input Content */}
-                            <div className="space-y-2 text-center">
-                                <label className="text-xs font-bold text-gray-400 block mb-2">勤務時間 (h)</label>
-                                <input
-                                    type="number"
-                                    value={inputHours}
-                                    onChange={(e) => setInputHours(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full text-5xl font-bold text-center text-primary dark:text-primary-light border-b-2 border-gray-200 dark:border-gray-600 focus:border-primary outline-none py-2 bg-transparent dark:text-white placeholder-gray-200"
-                                    autoFocus
-                                />
-                                <div className="flex flex-wrap gap-2 justify-center mt-4">
-                                    {settings.timePresets.map((preset) => (
-                                        <button
-                                            key={preset}
-                                            onClick={() => setInputHours(String(preset))}
-                                            className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 active:scale-95 transition-all"
-                                        >
-                                            {preset}
-                                        </button>
-                                    ))}
-                                </div>
+                            {/* Input Mode Toggle */}
+                            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                                <button
+                                    onClick={() => setInputMode('hours')}
+                                    className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${inputMode === 'hours' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                                >
+                                    時間(h)入力
+                                </button>
+                                <button
+                                    onClick={() => setInputMode('time')}
+                                    className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${inputMode === 'time' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
+                                >
+                                    時刻指定
+                                </button>
                             </div>
+
+                            {/* Shift Input Content */}
+                            {inputMode === 'hours' ? (
+                                <div className="space-y-2 text-center">
+                                    <label className="text-xs font-bold text-gray-400 block mb-2">勤務時間 (h)</label>
+                                    <input
+                                        type="number"
+                                        value={inputHours}
+                                        onChange={(e) => setInputHours(e.target.value)}
+                                        placeholder="0"
+                                        className="w-full text-5xl font-bold text-center text-primary dark:text-primary-light border-b-2 border-gray-200 dark:border-gray-600 focus:border-primary outline-none py-2 bg-transparent dark:text-white placeholder-gray-200"
+                                        autoFocus
+                                    />
+                                    <div className="flex flex-wrap gap-2 justify-center mt-4">
+                                        {settings.timePresets.map((preset) => (
+                                            <button
+                                                key={preset}
+                                                onClick={() => setInputHours(String(preset))}
+                                                className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 active:scale-95 transition-all"
+                                            >
+                                                {preset}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-400 ml-1">開始</label>
+                                            <input
+                                                type="time"
+                                                value={startTime}
+                                                onChange={(e) => setStartTime(e.target.value)}
+                                                className="w-full text-xl font-bold text-center bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-2 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-400 ml-1">終了</label>
+                                            <input
+                                                type="time"
+                                                value={endTime}
+                                                onChange={(e) => setEndTime(e.target.value)}
+                                                className={`w-full text-xl font-bold text-center bg-gray-50 dark:bg-gray-700 border ${endTime && startTime && endTime <= startTime ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600'} rounded-xl px-2 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20`}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Error Message for Time Crossing Midnight */}
+                                    {endTime && startTime && endTime <= startTime && (
+                                        <p className="text-xs text-red-500 font-bold text-center bg-red-50 dark:bg-red-900/10 py-1 rounded-lg">
+                                            ※ 日をまたぐシフトは入力できません
+                                        </p>
+                                    )}
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-400 ml-1">休憩時間</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[0, 45, 60].map(mins => (
+                                                <button
+                                                    key={mins}
+                                                    onClick={() => setBreakTime(String(mins))}
+                                                    className={`py-2 rounded-lg text-sm font-bold border transition-all ${breakTime === String(mins) ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-700 dark:text-blue-200' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
+                                                >
+                                                    {mins === 0 ? 'なし' : `${mins}分`}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* Custom Break Time Input */}
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="text-xs text-gray-400">その他:</span>
+                                            <input
+                                                type="number"
+                                                value={breakTime}
+                                                onChange={(e) => setBreakTime(e.target.value)}
+                                                className="w-16 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-sm text-center font-bold"
+                                            />
+                                            <span className="text-xs text-gray-400">分</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Calculated Hours Display */}
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl flex justify-between items-center border border-blue-100 dark:border-blue-800">
+                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-300">計算結果:</span>
+                                        <span className="text-xl font-bold text-primary dark:text-blue-300">{inputHours || '0'} <span className="text-xs">h</span></span>
+                                    </div>
+
+
+                                </div>
+                            )}
 
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-400 ml-1">勤務先 (時給)</label>
